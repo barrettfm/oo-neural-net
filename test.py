@@ -5,12 +5,14 @@
 
 import numpy as np
 import math
-import sigmoid
-import perceptron
+from sigmoid import SigmoidActivation
+from perceptron import Perceptron
+from network import Network
 from copy import deepcopy
 
+
 def main():
-    sigmoid_activation = sigmoid.SigmoidActivation()
+    sigmoid_activation = SigmoidActivation()
     # test_net = Network([1, 3, 2, 1],
     #                    [[[0.5, 0.5]], [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]], [
     #                        [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]], [[0.5, 0.5]]],
@@ -24,7 +26,7 @@ def main():
                        sigmoid_activation,
                        0.1)
 
-    test_net.train([1, 3], 0.95, 2)
+    test_net.train([1, 3], 0.95, 35)
 
     print(test_net.predict([1, 3]))
 
