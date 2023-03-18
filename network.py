@@ -31,7 +31,7 @@ from copy import deepcopy
 
 
 class Layer:
-    def __init__(self, shape, init_weights, bias, activation_function, eta=0.5, index=0):
+    def __init__(self, shape, init_weights, bias, activation_function, eta=0.5, index=0, input_layer=False, output_layer=False):
         self.shape = shape
         self.weights = init_weights
         self.bias = bias
@@ -41,12 +41,14 @@ class Layer:
         self.activation_value = 0
         self.index = index
         self.output = 0
+        self.input_layer = input_layer
+        self.output_layer = output_layer
 
         # Create all nodes in the layer according to the layer shape
         #       - For layers, shape is a scalar
         for i in range(self.shape):
             self.nodes[i] = perceptron.Perceptron(
-                self.weights[i], self.bias[i], self.activation_function, self.eta)
+                self.weights[i], self.bias[i], self.activation_function, self.eta, input_node=self.input_layer, output_node=self.output_layer)
             self.nodes[i].index = i
 
         for key in self.nodes.keys():
@@ -66,8 +68,14 @@ class Network:
         self.layers = {}
 
         for i in range(len(self.shape)):
+            input_layer = False
+            output_layer = False
+            if i == 0:
+                input_layer = True
+            if i == len(self.shape) - 1:
+                output_layer = True
             self.layers[i] = Layer(
-                self.shape[i], self.weights[i], self.bias[i], self.activation_function, self.eta, i)
+                self.shape[i], self.weights[i], self.bias[i], self.activation_function, self.eta, i, input_layer=input_layer, output_layer=output_layer)
             # self.layers[i].index = i
 
         for key in self.layers.keys():
@@ -93,13 +101,14 @@ class Network:
 
         return
 
-    def train(self, x, y, epochs):
+    def train(self, x, y, epochs, no_bias=False):
         prev_layer_output = []
         layer_output = []
 
         for i in range(epochs):
             print(i)
 
+            # Feed forward
             for layer_idx in self.layers.keys():
                 if layer_idx != 0:
                     prev_layer_output = deepcopy(layer_output)
@@ -124,13 +133,69 @@ class Network:
             # print('error:', error)
             self.updateError(error)
 
-            for layer_idx in self.layers.keys():
+            # Calculate Gradient for entire network (back prop)
+            for layer_idx in list(reversed(self.layers.keys())):
                 for node_idx in self.layers[layer_idx].nodes.keys():
                     # Error must be updated *first*; otherwise, it'll be zero in the
                     # gradient calculations.
                     # test_node.updateError(
                     #     calcError(test_node.activation_value, desired_value))
-                    self.layers[layer_idx].nodes[node_idx].calcGradient()
+
+                    # Pass weight from 'later' layer to this function?
+                    # if the node is an input node, we definitely need the following node's
+                    #   weights.
+                    # if the node is a hidden node, I'm not sure. If it's and output node,
+                    #   there's no 'next' weight to pass in.
+                    # if not self.layers[layer_idx].nodes[node_idx].output_node:
+                    # self.layers[layer_idx].nodes[node_idx + 1]
+                    # **********************************************************************
+                    depth = len(self.layers.keys()) - 1
+                    truelen = len(self.layers.keys())
+
+                    # Get all of the weights connected to this guy
+                    # Use layer_idx - 1 for the 'next' layer (as we're traversing in reverse)
+                    # How to handle an output node?
+                    connecting_weight = []
+                    delta_i = []
+                    if self.layers[layer_idx].nodes[node_idx].output_node != True:
+                        for connected_node_idx in self.layers[layer_idx + 1].nodes.keys():
+                            # Append the corresponding weight for each connected node
+                            connecting_weight.append(
+                                self.layers[layer_idx + 1].nodes[connected_node_idx].weights[node_idx])
+                            delta_i.append(self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
+
+                    self.layers[layer_idx].nodes[node_idx].calcGradient(np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
+
+                    # **********************************************************************
+                    # if self.layers[layer_idx].index != depth:
+                    #     # How to determine when a node is connected to another?
+                    #     connecting_weight = self.layers[layer_idx +
+                    #                                     1].nodes[node_idx].weights
+                    # else:
+                    #     connecting_weight = False
+                    # self.layers[layer_idx].nodes[node_idx].calcGradient(connecting_weight,
+                    #                                                     no_bias=no_bias)
+                    # **********************************************************************
+
+                    # Do not update weights here!!
+                    # self.layers[layer_idx].nodes[node_idx].updateWeights()
+
+                    # print("L" + str(layer_idx) + " Node " + str(node_idx) +
+                    #       "------------------------------------")
+                    # print("    - Activation Value: ",
+                    #       self.layers[layer_idx].nodes[node_idx].activation_value)
+                    # print("    - Weights: ",
+                    #       self.layers[layer_idx].nodes[node_idx].weights)
+                    # print("    - Prediction: ",
+                    #       self.layers[layer_idx].nodes[node_idx].activation_value)
+                    # print("    - Error: ",
+                    #       self.layers[layer_idx].nodes[node_idx].error)
+                    # print("    - Bias: ",
+                    #       self.layers[layer_idx].nodes[node_idx].bias)
+
+            # After gradient has been calculated for entire network, weights may be updated.
+            for layer_idx in self.layers.keys():
+                for node_idx in self.layers[layer_idx].nodes.keys():
                     self.layers[layer_idx].nodes[node_idx].updateWeights()
 
                     print("L" + str(layer_idx) + " Node " + str(node_idx) +
@@ -143,6 +208,12 @@ class Network:
                           self.layers[layer_idx].nodes[node_idx].activation_value)
                     print("    - Error: ",
                           self.layers[layer_idx].nodes[node_idx].error)
+                    print("    - Bias: ",
+                          self.layers[layer_idx].nodes[node_idx].bias)
+                    print("    - Output? ",
+                          self.layers[layer_idx].nodes[node_idx].output_node)
+                    print("    - Input? ",
+                          self.layers[layer_idx].nodes[node_idx].input_node)
 
     def predict(self, x):
         for layer_idx in self.layers.keys():
@@ -164,4 +235,3 @@ class Network:
                 layer_output.append(activation_value)
 
         return (layer_output)
-

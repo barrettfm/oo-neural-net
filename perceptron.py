@@ -39,7 +39,7 @@ import sigmoid
 
 
 class Perceptron:
-    def __init__(self, init_weights, bias, activation_function, eta=0.5):
+    def __init__(self, init_weights, bias, activation_function, eta=0.5, input_node=False, output_node=False):
         self.weights = init_weights
         self.bias = bias
         self.activation_function = activation_function
@@ -54,6 +54,9 @@ class Perceptron:
 
         self.index = 0
         self.error = 0
+
+        self.input_node = input_node
+        self.output_node = output_node
 
         # Input is a vector with length equal to that of the weights.
         self.input = [0]*self.vector_length
@@ -78,7 +81,7 @@ class Perceptron:
         self.index = index
         return
 
-    def calcGradient(self):
+    def calcGradient(self, connecting_weight, delta_i=1, no_bias=False):
         # To get the change in overall error (E_j) over change in a given weight (w_ij),
         # -e_j*(1 - y_j)*y_j*x_i
         # Or, the error for the current node times one minus the node's output, times the node's
@@ -86,12 +89,36 @@ class Perceptron:
 
         # Should this be negated (see notes)?
         # scalar * scalar * scalar
-        self.delta = self.error * \
-            (1 - self.activation_value) * self.activation_value
-        # scalar * scalar * vector
-        self.delta_weights = self.eta * self.delta * np.array(self.input)
+        # 15:16 in March 9th office hours
+        #   - You're calculating the delta using the original equation and
+        #       not factoring in the weight.
+        #   - If there were more output layer nodes, or if the next layer
+        #       were a hidden layer node, you'd need to do the weighted
+        #       sum of the deltas.
+        if self.output_node:
+            self.delta = self.error * (1 - self.activation_value) * self.activation_value
+            self.delta_weights = self.eta * self.delta * np.array(self.input)
+        elif self.input_node and len(connecting_weight) != 0:
+            # Need to multiply by next node's deltas as well.
+            self.delta = (1 - self.activation_value) * self.activation_value * delta_i * connecting_weight
+            # self.delta = self.error * \
+            #     (1 - self.activation_value) * self.activation_value
+            self.delta_weights = self.eta * self.delta * np.array(self.input)
+        else:
+            # Need to multiply by next node's deltas as well.
+            self.delta = (1 - self.activation_value) * self.activation_value * delta_i * connecting_weight
+            self.delta_weights = self.eta * self.delta * np.array(self.input)
+
+            # self.delta = self.error * \
+            #     (1 - self.activation_value) * self.activation_value
+            # self.delta_weights = self.eta * self.delta * \
+            #     np.array(self.input) * connecting_weight
+        # self.delta_weights = self.eta * self.delta * np.array(self.input) * connecting_weight
         # scalar * scalar
-        self.delta_bias = self.eta * self.delta
+        if no_bias == False:
+            self.delta_bias = self.eta * self.delta
+        else:
+            self.delta_bias = 0
 
         return
 
