@@ -54,6 +54,7 @@ class Perceptron:
 
         self.index = 0
         self.error = 0
+        self.bigE = 0
 
         self.input_node = input_node
         self.output_node = output_node
@@ -96,25 +97,26 @@ class Perceptron:
         #       were a hidden layer node, you'd need to do the weighted
         #       sum of the deltas.
         if self.output_node:
-            self.delta = self.error * (1 - self.activation_value) * self.activation_value
+            self.delta = self.error * \
+                (1 - self.activation_value) * self.activation_value
             self.delta_weights = self.eta * self.delta * np.array(self.input)
+            # Bug where delta_weights' shape becomes (n,1) and not (n)--this causes duplication
+            # in matrix multiplication. **Need to hunt this down**
+            self.delta_weights = self.delta_weights.flatten()
         elif self.input_node and len(connecting_weight) != 0:
             # Need to multiply by next node's deltas as well.
-            self.delta = (1 - self.activation_value) * self.activation_value * delta_i * connecting_weight
+            self.delta = (1 - self.activation_value) * \
+                self.activation_value * delta_i * connecting_weight
             # self.delta = self.error * \
             #     (1 - self.activation_value) * self.activation_value
             self.delta_weights = self.eta * self.delta * np.array(self.input)
         else:
             # Need to multiply by next node's deltas as well.
-            self.delta = (1 - self.activation_value) * self.activation_value * delta_i * connecting_weight
+            self.delta = (1 - self.activation_value) * \
+                self.activation_value * delta_i * connecting_weight
             self.delta_weights = self.eta * self.delta * np.array(self.input)
 
-            # self.delta = self.error * \
-            #     (1 - self.activation_value) * self.activation_value
-            # self.delta_weights = self.eta * self.delta * \
-            #     np.array(self.input) * connecting_weight
-        # self.delta_weights = self.eta * self.delta * np.array(self.input) * connecting_weight
-        # scalar * scalar
+        # This is wrong?
         if no_bias == False:
             self.delta_bias = self.eta * self.delta
         else:
@@ -173,45 +175,45 @@ def calcError(prediction, desired_value):
 # -0.021
 
 
-def main():
-    iterations = int(input("Number of iterations: "))
+# def main():
+#     iterations = int(input("Number of iterations: "))
 
-    # Using self-made sigmoid class; made with the intent
-    # of using different activation functions in the future
-    sigmoid_activation = sigmoid.SigmoidActivation()
+#     # Using self-made sigmoid class; made with the intent
+#     # of using different activation functions in the future
+#     sigmoid_activation = sigmoid.SigmoidActivation()
 
-    # Values to mimic FFBP example from lecture
-    # desired_value = 0.7
-    # bias = 0
-    # eta = 1.0
-    # test_node = Perceptron([0.3, 0.3], bias, sigmoid_activation, eta)
+#     # Values to mimic FFBP example from lecture
+#     # desired_value = 0.7
+#     # bias = 0
+#     # eta = 1.0
+#     # test_node = Perceptron([0.3, 0.3], bias, sigmoid_activation, eta)
 
-    # Values for problem 1
-    # desired_value = 0.95
-    desired_value = 0.15
-    bias = 0
-    eta = 5.0
-    test_node = Perceptron([0.24, 0.88], bias, sigmoid_activation, eta)
+#     # Values for problem 1
+#     # desired_value = 0.95
+#     desired_value = 0.15
+#     bias = 0
+#     eta = 5.0
+#     test_node = Perceptron([0.24, 0.88], bias, sigmoid_activation, eta)
 
-    for i in range(iterations):
-        print(i)
-        stopping_iter = 30
+#     for i in range(iterations):
+#         print(i)
+#         stopping_iter = 30
 
-        if i == stopping_iter:
-            print('--' + str(stopping_iter) + 'Iterations--')
+#         if i == stopping_iter:
+#             print('--' + str(stopping_iter) + 'Iterations--')
 
-        test_node.feedForward([0.8, 0.9])
+#         test_node.feedForward([0.8, 0.9])
 
-        # Error must be updated *first*; otherwise, it'll be zero in the
-        # gradient calculations.
-        test_node.updateError(
-            calcError(test_node.activation_value, desired_value))
-        test_node.calcGradient()
-        test_node.updateWeights()
+#         # Error must be updated *first*; otherwise, it'll be zero in the
+#         # gradient calculations.
+#         test_node.updateError(
+#             calcError(test_node.activation_value, desired_value))
+#         test_node.calcGradient()
+#         test_node.updateWeights()
 
-        print("    - Activation Value: ", test_node.activation_value)
-        print("    - Weights: ", test_node.weights)
-        print("    - Prediction: ", test_node.activation_value)
-        print("    - Error: ", test_node.error)
+#         print("    - Activation Value: ", test_node.activation_value)
+#         print("    - Weights: ", test_node.weights)
+#         print("    - Prediction: ", test_node.activation_value)
+#         print("    - Error: ", test_node.error)
 
-    return
+#     return

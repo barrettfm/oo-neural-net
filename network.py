@@ -66,6 +66,7 @@ class Network:
         self.activation_function = activation_function
         self.eta = eta
         self.layers = {}
+        self.bigE = 0
 
         for i in range(len(self.shape)):
             input_layer = False
@@ -95,13 +96,16 @@ class Network:
     def updateError(self, error):
         # Iterate over every layer and node to update the error
         # Not efficient but...makes sense to me logically
+        bigE = 0.5 * (error**2)
+        self.bigE = bigE
         for layer_idx in self.layers.keys():
             for node_idx in self.layers[layer_idx].nodes.keys():
                 self.layers[layer_idx].nodes[node_idx].error = error[0]
+                self.layers[layer_idx].nodes[node_idx].bigE = bigE[0]
 
         return
 
-    def train(self, x, y, epochs, no_bias=False):
+    def train(self, x, y, epochs, no_bias=False, v=True):
         prev_layer_output = []
         layer_output = []
 
@@ -162,9 +166,11 @@ class Network:
                             # Append the corresponding weight for each connected node
                             connecting_weight.append(
                                 self.layers[layer_idx + 1].nodes[connected_node_idx].weights[node_idx])
-                            delta_i.append(self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
+                            delta_i.append(
+                                self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
 
-                    self.layers[layer_idx].nodes[node_idx].calcGradient(np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
+                    self.layers[layer_idx].nodes[node_idx].calcGradient(
+                        np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
 
                     # **********************************************************************
                     # if self.layers[layer_idx].index != depth:
@@ -197,23 +203,269 @@ class Network:
             for layer_idx in self.layers.keys():
                 for node_idx in self.layers[layer_idx].nodes.keys():
                     self.layers[layer_idx].nodes[node_idx].updateWeights()
+                    if v:
+                        print("L" + str(layer_idx) + " Node " + str(node_idx) +
+                              "------------------------------------")
+                        print("    - Activation Value: ",
+                              self.layers[layer_idx].nodes[node_idx].activation_value)
+                        print("    - Weights: ",
+                              self.layers[layer_idx].nodes[node_idx].weights)
+                        print("    - Prediction: ",
+                              self.layers[layer_idx].nodes[node_idx].activation_value)
+                        print("    - Error: ",
+                              self.layers[layer_idx].nodes[node_idx].error)
+                        print("    - BigE: ",
+                              self.layers[layer_idx].nodes[node_idx].bigE)
+                        print("    - Bias: ",
+                              self.layers[layer_idx].nodes[node_idx].bias)
+                        print("    - Output? ",
+                              self.layers[layer_idx].nodes[node_idx].output_node)
+                        print("    - Input? ",
+                              self.layers[layer_idx].nodes[node_idx].input_node)
 
-                    print("L" + str(layer_idx) + " Node " + str(node_idx) +
-                          "------------------------------------")
-                    print("    - Activation Value: ",
-                          self.layers[layer_idx].nodes[node_idx].activation_value)
-                    print("    - Weights: ",
-                          self.layers[layer_idx].nodes[node_idx].weights)
-                    print("    - Prediction: ",
-                          self.layers[layer_idx].nodes[node_idx].activation_value)
-                    print("    - Error: ",
-                          self.layers[layer_idx].nodes[node_idx].error)
-                    print("    - Bias: ",
-                          self.layers[layer_idx].nodes[node_idx].bias)
-                    print("    - Output? ",
-                          self.layers[layer_idx].nodes[node_idx].output_node)
-                    print("    - Input? ",
-                          self.layers[layer_idx].nodes[node_idx].input_node)
+    def trainM1_beta(self, x, y, batch_size, epochs, no_bias=False, v=True):
+        prev_layer_output = []
+        layer_output = []
+
+        for i in range(epochs):
+            print(i)
+            # Iterate over the pairs using batch_size
+            for k in range(0, len(x), batch_size):
+
+                # Present the first input/output pair
+
+                # Perform the back propagation technique (with weight updates)
+
+                # Present the second input/output pair
+
+                # Perform the back propagation technique (with weight updates)
+
+                # Feed forward
+                for layer_idx in self.layers.keys():
+                    if layer_idx != 0:
+                        prev_layer_output = deepcopy(layer_output)
+                    else:
+                        prev_layer_output = deepcopy(x[k])
+                    # Clear layer_output for use with the current layer
+                    layer_output = []
+
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        # Give input to the current node
+                        # **How should we indicate first input vs. inputs
+                        #   between layers?**
+                        layer_input = prev_layer_output
+                        activation_value = self.layers[layer_idx].nodes[node_idx].feedForward(
+                            layer_input)
+                        # Add current node's activation value to list of input for next layer
+                        layer_output.append(activation_value)
+
+                # Update error for the network
+                error = np.array(y[k]) - np.array(layer_output)
+                # print('layer_output:', layer_output)
+                # print('error:', error)
+                self.updateError(error)
+
+                # Calculate Gradient for entire network (back prop)
+                for layer_idx in list(reversed(self.layers.keys())):
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+
+                        depth = len(self.layers.keys()) - 1
+                        truelen = len(self.layers.keys())
+
+                        connecting_weight = []
+                        delta_i = []
+                        if self.layers[layer_idx].nodes[node_idx].output_node != True:
+                            for connected_node_idx in self.layers[layer_idx + 1].nodes.keys():
+                                # Append the corresponding weight for each connected node
+                                connecting_weight.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].weights[node_idx])
+                                delta_i.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
+
+                        self.layers[layer_idx].nodes[node_idx].calcGradient(
+                            np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
+
+                # After gradient has been calculated for entire network, weights may be updated.
+                for layer_idx in self.layers.keys():
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        self.layers[layer_idx].nodes[node_idx].updateWeights()
+                        if v:
+                            print("L" + str(layer_idx) + " Node " + str(node_idx) +
+                                  "------------------------------------")
+                            print("    - Activation Value: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Weights: ",
+                                  self.layers[layer_idx].nodes[node_idx].weights)
+                            print("    - Prediction: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Error: ",
+                                  self.layers[layer_idx].nodes[node_idx].error)
+                            print("    - BigE: ",
+                                  self.layers[layer_idx].nodes[node_idx].bigE)
+                            print("    - Bias: ",
+                                  self.layers[layer_idx].nodes[node_idx].bias)
+                            print("    - Output? ",
+                                  self.layers[layer_idx].nodes[node_idx].output_node)
+                            print("    - Input? ",
+                                  self.layers[layer_idx].nodes[node_idx].input_node)
+        return
+
+    def trainM1(self, x, y, batch_size, epochs, no_bias=False, v=True):
+        prev_layer_output = []
+        layer_output = []
+
+        for i in range(epochs):
+            print('Epoch:', i)
+            for k in range(0, len(x), batch_size):
+                print('Batch:', x[k], y[k])
+                checky1 = x[k]
+                checky2 = y[k]
+                # Feed forward per batch
+                for layer_idx in self.layers.keys():
+                    if layer_idx != 0:
+                        prev_layer_output = deepcopy(layer_output)
+                    else:
+                        prev_layer_output = deepcopy(x[k])
+                    # Clear layer_output for use with the current layer
+                    layer_output = []
+
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        layer_input = prev_layer_output
+                        activation_value = self.layers[layer_idx].nodes[node_idx].feedForward(
+                            layer_input)
+                        # Add current node's activation value to list of input for next layer
+                        layer_output.append(activation_value)
+
+                # Update error for the network per batch
+                error = np.array(y[k]) - np.array(layer_output)
+                self.updateError(error)
+
+                # Calculate Gradient for entire network (back prop); per batch
+                for layer_idx in list(reversed(self.layers.keys())):
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+
+                        depth = len(self.layers.keys()) - 1
+                        truelen = len(self.layers.keys())
+
+                        # Get all of the weights connected to this guy
+                        # Use layer_idx - 1 for the 'next' layer (as we're traversing in reverse)
+                        # How to handle an output node?
+                        connecting_weight = []
+                        delta_i = []
+                        if self.layers[layer_idx].nodes[node_idx].output_node != True:
+                            for connected_node_idx in self.layers[layer_idx + 1].nodes.keys():
+                                # Append the corresponding weight for each connected node
+                                connecting_weight.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].weights[node_idx])
+                                delta_i.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
+
+                        self.layers[layer_idx].nodes[node_idx].calcGradient(
+                            np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
+
+                # Update weights per batch
+                for layer_idx in self.layers.keys():
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        self.layers[layer_idx].nodes[node_idx].updateWeights()
+                        if v:
+                            print("L" + str(layer_idx) + " Node " + str(node_idx) +
+                                  "------------------------------------")
+                            print("    - Activation Value: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Weights: ",
+                                  self.layers[layer_idx].nodes[node_idx].weights)
+                            print("    - Prediction: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Error: ",
+                                  self.layers[layer_idx].nodes[node_idx].error)
+                            print("    - BigE: ",
+                                  self.layers[layer_idx].nodes[node_idx].bigE)
+                            print("    - Bias: ",
+                                  self.layers[layer_idx].nodes[node_idx].bias)
+                            print("    - Output? ",
+                                  self.layers[layer_idx].nodes[node_idx].output_node)
+                            print("    - Input? ",
+                                  self.layers[layer_idx].nodes[node_idx].input_node)
+
+    def trainM2(self, x, y, batch_size, epochs, no_bias=False, v=True):
+        prev_layer_output = []
+        layer_output = []
+        for k in range(0, len(x), batch_size):
+            print('Batch:', x[k], y[k])
+            for i in range(epochs):
+                checky1 = x[k]
+                checky2 = y[k]
+                print('Epoch:', i)
+                print('Input:', checky1)
+                print('Expected Output:', checky2)
+                # Feed forward per batch
+                for layer_idx in self.layers.keys():
+                    if layer_idx != 0:
+                        prev_layer_output = deepcopy(layer_output)
+                    else:
+                        prev_layer_output = deepcopy(x[k])
+                    # Clear layer_output for use with the current layer
+                    layer_output = []
+
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        layer_input = prev_layer_output
+                        activation_value = self.layers[layer_idx].nodes[node_idx].feedForward(
+                            layer_input)
+                        # Add current node's activation value to list of input for next layer
+                        layer_output.append(activation_value)
+
+                # Update error for the network per batch
+                error = np.array(y[k]) - np.array(layer_output)
+                self.updateError(error)
+
+                # Calculate Gradient for entire network (back prop); per batch
+                for layer_idx in list(reversed(self.layers.keys())):
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+
+                        depth = len(self.layers.keys()) - 1
+                        truelen = len(self.layers.keys())
+
+                        # Get all of the weights connected to this guy
+                        # Use layer_idx - 1 for the 'next' layer (as we're traversing in reverse)
+                        # How to handle an output node?
+                        connecting_weight = []
+                        delta_i = []
+                        if self.layers[layer_idx].nodes[node_idx].output_node != True:
+                            for connected_node_idx in self.layers[layer_idx + 1].nodes.keys():
+                                # Append the corresponding weight for each connected node
+                                connecting_weight.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].weights[node_idx])
+                                delta_i.append(
+                                    self.layers[layer_idx + 1].nodes[connected_node_idx].delta)
+
+                        self.layers[layer_idx].nodes[node_idx].calcGradient(
+                            np.array(connecting_weight), np.array(delta_i), no_bias=no_bias)
+
+                # Update weights per batch
+                for layer_idx in self.layers.keys():
+                    for node_idx in self.layers[layer_idx].nodes.keys():
+                        self.layers[layer_idx].nodes[node_idx].updateWeights()
+                        if v:
+                            print("L" + str(layer_idx) + " Node " + str(node_idx) +
+                                  "------------------------------------")
+                            print("    - Activation Value: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Weights: ",
+                                  self.layers[layer_idx].nodes[node_idx].weights)
+                            print("    - Prediction: ",
+                                  self.layers[layer_idx].nodes[node_idx].activation_value)
+                            print("    - Error: ",
+                                  self.layers[layer_idx].nodes[node_idx].error)
+                            print("    - BigE: ",
+                                  self.layers[layer_idx].nodes[node_idx].bigE)
+                            print("    - Bias: ",
+
+                                  self.layers[layer_idx].nodes[node_idx].bias)
+                            print("    - Output? ",
+                                  self.layers[layer_idx].nodes[node_idx].output_node)
+                            print("    - Input? ",
+                                  self.layers[layer_idx].nodes[node_idx].input_node)
+                print('Iteration ', i+1, ' complete.')
 
     def predict(self, x):
         for layer_idx in self.layers.keys():

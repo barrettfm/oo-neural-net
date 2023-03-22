@@ -21,14 +21,26 @@ def main():
     #                    0.5)
 
     test_net = Network([2, 1],
-                       [[[0.8, 0.1], [0.5, 0.2]], [[0.2, 0.7]]],
+                       [[[0.3, 0.3], [0.3, 0.3]], [[0.8, 0.8]]],
                        [[0, 0], [0]],
                        sigmoid_activation,
-                       0.1)
+                       1.0)
 
-    test_net.train([1, 3], 0.95, 1, no_bias=True)
+    test_net.trainM1_beta([1, 2], 0.7, 1, 1, no_bias=False)
 
-    print(test_net.predict([1, 3]))
+    print(test_net.predict([1, 2]))
+    print('BigE = ', 0.5 * (0.7 - test_net.predict([1, 2])[0])**2)
+    print('lil e = ', 0.7 - test_net.predict([1, 2])[0])
+
+    # test_net = Network([2, 1],
+    #                    [[[0.8, 0.1], [0.5, 0.2]], [[0.2, 0.7]]],
+    #                    [[0, 0], [0]],
+    #                    sigmoid_activation,
+    #                    0.1)
+
+    # test_net.train([1, 3], 0.95, 1, no_bias=True)
+
+    # print(test_net.predict([1, 3]))
 
     return
 
